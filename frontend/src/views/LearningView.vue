@@ -10,13 +10,18 @@ import Dialog from 'primevue/dialog';
 import { useToast } from 'primevue/usetoast';
 import LearningArticlePreview from '../components/LearningArticlePreview.vue';
 
+// Trang thực hành giữ dữ liệu cục bộ để thử Vue/PrimeVue, không lưu những ví dụ này lên API.
+// ToastService đã đăng ký ở main.ts; App.vue chứa <Toast> để hiển thị thông báo.
 const toast = useToast();
+// Các ref được nối với InputText/nút bằng v-model và @click; sửa là thấy kết quả ngay.
 const title = ref('Một góc nhìn mới về cuộc sống hôm nay');
 const category = ref('Đời sống');
 const showPreview = ref(true);
 const saved = ref(false);
 const dialog = ref(false);
 const search = ref('');
+// Danh sách tĩnh không thay đổi nên không cần ref; template dùng v-for để dựng thẻ điều hướng.
+// anchor khớp id từng section, cho phép liên kết #vue-can-ban cuộn đến phần học tương ứng.
 const lessons = [
   { number: '01', title: 'Vue căn bản', text: 'Component, template, ref, computed, v-if, v-for và v-model.', anchor: 'vue-can-ban', icon: 'pi-code' },
   { number: '02', title: 'PrimeVue và giao diện', text: 'Button, InputText, Tag, DataTable, Dialog, Toast và responsive.', anchor: 'primevue', icon: 'pi-palette' },
@@ -24,14 +29,23 @@ const lessons = [
   { number: '04', title: 'Backend và SQL Server', text: 'ASP.NET Core, Entity Framework Core, DTO, CRUD và database.', anchor: 'backend-sql', icon: 'pi-database' },
   { number: '05', title: 'Quản trị tin tức', text: 'Đăng nhập, JWT, phân quyền, trình soạn thảo, duyệt và xuất bản bài viết.', anchor: 'quan-tri', icon: 'pi-verified' },
 ];
+// computed giữ các giá trị suy ra: danh sách lọc theo ô tìm kiếm và số ký tự tiêu đề đã trim.
+// filter trả mảng mới nên dữ liệu lessons gốc vẫn giữ nguyên.
 const filteredLessons = computed(() => lessons.filter(lesson => lesson.title.toLocaleLowerCase('vi').includes(search.value.toLocaleLowerCase('vi'))));
 const titleLength = computed(() => title.value.trim().length);
+// Các chuỗi mã nguồn bên dưới chỉ để hiển thị trong <pre><code>, không được chạy bằng eval.
+// Ký tự \n tạo dòng mới; \${...} trong routerCode giữ nguyên ví dụ nội suy trong chuỗi.
 const basicsCode = `const title = ref('Câu chuyện của bạn');\nconst titleLength = computed(() => title.value.trim().length);\n\n<InputText v-model="title" />\n<p v-if="titleLength > 0">{{ titleLength }} ký tự</p>\n<LearningArticlePreview :title="title" @toggle-save="saved = !saved" />`;
 const routerCode = `// router/index.ts\n{ path: '/bai-viet/:id', component: ArticleView }\n\n// services/news.ts\nconst response = await api.get(\`/articles/\${id}\`, { signal });\n\n// views/ArticleView.vue: theo dõi ID và hủy request cũ\nwatch(() => route.params.id, async (id, _, onCleanup) => {\n  const controller = new AbortController();\n  onCleanup(() => controller.abort());\n  try { article.value = await getArticle(Number(id), controller.signal); }\n  catch (error) { /* 404 hoặc lỗi kết nối, có nút thử lại */ }\n}, { immediate: true });`;
+// life tính bằng mili giây: thông báo ví dụ tự đóng sau 4 giây.
 function notify() { toast.add({ severity: 'success', summary: 'Toast đang hoạt động', detail: 'Đây cũng là cách tòa soạn báo lưu bài và cập nhật trạng thái thành công.', life: 4000 }); }
 </script>
 
 <template>
+  <!-- Cha sở hữu title/category/saved, truyền props cho LearningArticlePreview và nghe
+       @toggle-save để đổi saved. v-if có thể tháo hẳn component con khỏi DOM.
+       PrimeVue DataTable nhận mảng qua :value; #body là slot tùy chỉnh cách hiển thị một ô.
+       v-model:visible là binding hai chiều cho trạng thái mở/đóng của Dialog. -->
   <div class="container page learning-page"><div class="learning-intro"><span class="eyebrow">HỌC QUA MỘT DỰ ÁN HOÀN CHỈNH</span><h1>Từ dòng code đầu tiên<br>đến một <em>tòa soạn số.</em></h1><p>Năm phần học nối tiếp nhau. Thử ngay trên giao diện, rồi mở mã nguồn để hiểu cách mọi thứ hoạt động.</p><RouterLink to="/quan-tri" class="button button-dark">Khám phá tòa soạn <i class="pi pi-arrow-up-right" aria-hidden="true"></i></RouterLink></div><nav class="lesson-grid" aria-label="Năm phần học"><a v-for="lesson in lessons" :key="lesson.number" :href="`#${lesson.anchor}`" class="lesson-card"><span class="lesson-number">{{ lesson.number }}</span><i :class="['pi', lesson.icon]" aria-hidden="true"></i><h2>{{ lesson.title }}</h2><p>{{ lesson.text }}</p><span class="lesson-link">Khám phá <i class="pi pi-arrow-down" aria-hidden="true"></i></span></a></nav>
     <section id="vue-can-ban" class="learning-section"><div class="learning-section-heading"><span class="lesson-number">01</span><div><span class="eyebrow">NỀN TẢNG PHẢN ỨNG</span><h2>Vue căn bản</h2><p>Thay đổi dữ liệu bên trái và xem component con cập nhật ngay bên phải.</p></div></div><div class="learning-lab"><div class="admin-panel"><div class="form-field"><label for="demo-title">Tiêu đề · v-model & ref</label><InputText id="demo-title" v-model="title" maxlength="120" /><small>computed: {{ titleLength }} ký tự sau khi bỏ khoảng trắng ở hai đầu.</small></div><div class="form-field"><label for="demo-category">Chuyên mục · v-model</label><InputText id="demo-category" v-model="category" maxlength="30" /></div><Button :label="showPreview ? 'Ẩn component (v-if)' : 'Hiện component (v-if)'" severity="secondary" @click="showPreview = !showPreview" /><p class="learning-explainer">Danh sách 5 phần phía trên dùng <code>v-for</code>. Component xem trước nhận <code>props</code>, phát <code>emit</code> khi bạn lưu ví dụ.</p></div><LearningArticlePreview v-if="showPreview" :title="title" :category="category" :saved="saved" @toggle-save="saved = !saved" /><div v-else class="learning-placeholder">Component con đã được gỡ khỏi DOM bằng v-if.</div></div><pre class="learning-code"><code>{{ basicsCode }}</code></pre></section>
     <section id="primevue" class="learning-section"><div class="learning-section-heading"><span class="lesson-number">02</span><div><span class="eyebrow">COMPONENT CÓ THỂ TÁI SỬ DỤNG</span><h2>PrimeVue và giao diện</h2><p>Các thành phần dưới đây cũng được dùng thật trong trang quản trị.</p></div></div><div class="admin-panel"><div class="learning-toolbar"><InputText v-model="search" aria-label="Lọc phần học" placeholder="Lọc tên phần học…" /><Tag value="Responsive" severity="success" /><Button label="Mở Dialog" icon="pi pi-window-maximize" outlined @click="dialog = true" /><Button label="Thử Toast" icon="pi pi-bell" @click="notify" /></div><DataTable :value="filteredLessons" data-key="number" table-style="min-width: 520px" scrollable><Column field="number" header="Phần" /><Column field="title" header="Nội dung" /><Column header="Component / tính năng"><template #body="{ data }"><span class="table-summary">{{ data.text }}</span></template></Column><template #empty>Không có phần học phù hợp.</template></DataTable></div></section>

@@ -34,6 +34,8 @@ builder.Services.AddDbContext<NewsDbContext>(options =>
 builder.Services.AddScoped<IArticleRepository, EfArticleRepository>();
 builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<ArticleManagementService>();
+builder.Services.AddScoped<IArticleFeedbackRepository, EfArticleFeedbackRepository>();
+builder.Services.AddScoped<ArticleFeedbackService>();
 builder.Services.AddSingleton<IHtmlContentSanitizer, HtmlContentSanitizer>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -78,6 +80,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
         { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    options.AddPolicy("feedback", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+        { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 
@@ -96,7 +101,11 @@ if (app.Configuration.GetValue<bool>("Database:Initialize"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<NewsDbContext>();
-    if (db.Database.IsSqlite()) await db.Database.EnsureCreatedAsync();
+    if (db.Database.IsSqlite())
+    {
+        await db.Database.EnsureCreatedAsync();
+        await SqliteFeedbackSchema.UpgradeAsync(db);
+    }
     else await db.Database.MigrateAsync();
     await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>(),
         app.Configuration, app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"));

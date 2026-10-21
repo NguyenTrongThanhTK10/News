@@ -108,7 +108,15 @@ frontend/src/
 
 Phụ thuộc backend: **Application → Domain**, **Infrastructure → Application/Domain**, **API → Application/Infrastructure**. Controller không truy vấn database; Application xử lý nghiệp vụ qua interface. Repository truy vấn/filter/count/paginate bằng EF Core async tại database. DTO tách hợp đồng HTTP khỏi entity, danh sách công khai không gửi toàn bộ nội dung bài.
 
-Các bảng: **Articles**, **Categories**, **Users**, **Sessions**; khóa ngoại, chỉ mục và concurrency token. `Version` dạng GUID được EF kiểm tra khi cập nhật, trả `409` nếu dữ liệu đã đổi. Ngày giờ lưu UTC, frontend hiển thị giờ Việt Nam.
+Các bảng: **Articles**, **Categories**, **Users**, **Sessions**, **Comments**, **Ratings**; khóa ngoại, chỉ mục và concurrency token. `Version` dạng GUID được EF kiểm tra khi cập nhật, trả `409` nếu dữ liệu đã đổi. Ngày giờ lưu UTC, frontend hiển thị giờ Việt Nam.
+
+## Bình luận và đánh giá bài viết
+
+Cuối mỗi bài công khai có bình luận và đánh giá **1–5 sao**, điểm trung bình, số lượt và phân bố số sao. Độc giả không cần tài khoản tòa soạn: nhập tên hiển thị 2–80 ký tự và bình luận 5–2000 ký tự. Nội dung được lưu dưới dạng văn bản và hiển thị bằng nội suy Vue, không thực thi HTML. Danh sách bình luận có phân trang, mới nhất trước.
+
+Đánh giá được nhận diện bằng cookie ngẫu nhiên `HttpOnly`, `SameSite=Strict` có hạn một năm, chỉ lưu bản hash của mã nhận diện trong database. Gửi lại từ cùng trình duyệt cập nhật đánh giá cũ, không tăng số lượt. Đây là nhận diện trình duyệt, không xác minh danh tính: xóa cookie hoặc dùng trình duyệt khác có thể tạo lượt mới. Cookie dùng `Secure` trong Production; triển khai frontend và API cùng site qua HTTPS.
+
+Chỉ bài đã xuất bản, chưa xóa mới cho đọc/ghi phản hồi. API giới hạn tổng cộng 12 lần gửi bình luận/đánh giá mỗi phút theo IP. SQLite Development tự bổ sung hai bảng khi `Database:Initialize=true`, giữ nguyên dữ liệu cũ. SQL Server cần áp dụng migration `AddArticleFeedback` hoặc [script nâng cấp](backend/sql/002-article-feedback.sql) sau schema ban đầu.
 
 ## Đăng nhập và phiên
 
@@ -124,6 +132,8 @@ Các bảng: **Articles**, **Categories**, **Users**, **Sessions**; khóa ngoạ
 | Nhóm | Endpoint |
 | --- | --- |
 | Công khai | `GET /health`, `GET /api/categories`, `GET /api/articles`, `GET /api/articles/{id}` |
+| Bình luận | `GET/POST /api/articles/{id}/comments` — GET nhận `page`, `pageSize` (1–30, mặc định 10); POST nhận `{ "displayName": "Tên", "content": "Bình luận" }` |
+| Đánh giá | `GET/POST /api/articles/{id}/ratings` — POST nhận `{ "stars": 1..5 }`; response có `average`, `count`, `myRating`, `distribution` (số lượt từ 1 đến 5 sao) |
 | Đăng nhập | `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me` |
 | CRUD quản trị | `GET/POST /api/admin/articles`, `GET/PUT/DELETE /api/admin/articles/{id}` |
 | Quy trình | `POST /api/admin/articles/{id}/{operation}` |
@@ -134,7 +144,7 @@ Danh sách nhận `search` (≤200 ký tự), `category` (slug), `page` (mặc �
 
 Response danh sách: `{ items, totalCount, page, pageSize, totalPages }`. Response chi tiết quản trị: `{ article, status, authorId, version, reviewNote, createdAt, updatedAt }`.
 
-`400` dữ liệu sai, `401` chưa đăng nhập/hết phiên, `403` thiếu quyền, `404` không tồn tại/chưa công khai, `409` xung đột phiên bản/trạng thái, `429` vượt giới hạn đăng nhập. Lỗi HTTP dùng Problem Details; client phân biệt lỗi mạng và lỗi API.
+`400` dữ liệu sai, `401` chưa đăng nhập/hết phiên, `403` thiếu quyền, `404` không tồn tại/chưa công khai, `409` xung đột phiên bản/trạng thái, `429` vượt giới hạn đăng nhập hoặc gửi phản hồi. Lỗi HTTP dùng Problem Details; client phân biệt lỗi mạng và lỗi API.
 
 ## SQL Server và tài khoản triển khai
 

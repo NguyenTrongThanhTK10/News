@@ -104,3 +104,21 @@ test('broken images fall back without breaking article links', async ({ page }) 
   await page.locator('.news-card h3 a').first().click();
   await expect(page.locator('.article-header h1')).toBeVisible();
 });
+
+
+test('reading layout switches and discovery links filter the feed', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.feed-cards.is-list')).toBeVisible();
+  const titles = await page.locator('.feed-cards h3').allTextContents();
+  await page.getByRole('button', { name: 'Hiển thị dạng lưới', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Hiển thị dạng lưới', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.feed-cards')).not.toHaveClass(/is-list/);
+  await expect(page.locator('.feed-cards h3')).toHaveText(titles);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Hiển thị danh sách', exact: true }).click();
+  await expect(page.locator('.feed-cards .news-card-list')).toHaveCount(6);
+  await page.locator('.topic-link[data-topic="du-lich"]').click();
+  await expect(page).toHaveURL(/category=du-lich/);
+  await expect(page.locator('.news-card')).toHaveCount(2);
+  await expect(page.locator('.news-card .category')).toHaveText(['Du lịch', 'Du lịch']);
+});

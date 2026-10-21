@@ -70,6 +70,8 @@ dotnet ef migrations script --idempotent --project News.Infrastructure --startup
 
 Script đã sinh sẵn: [`backend/sql/001-initial-schema.sql`](../backend/sql/001-initial-schema.sql). Script cần được chạy trong database `Tin24` đã tạo, bằng SSMS/sqlcmd. Script chỉ tạo schema, không chứa mật khẩu hay tài khoản ứng dụng.
 
+Chức năng bình luận/đánh giá bổ sung migration `AddArticleFeedback`. Database đã chạy schema ban đầu cần áp dụng [`backend/sql/002-article-feedback.sql`](../backend/sql/002-article-feedback.sql), hoặc dùng `dotnet ef database update` để áp dụng mọi migration còn thiếu. Với database mới, chạy `001` rồi `002`; script `002` chỉ thêm hai bảng cùng chỉ mục/ràng buộc, không thay đổi bài viết hay tài khoản hiện có. Script này đã được sinh bằng provider SQL Server nhưng chưa chạy trên SQL Server thật.
+
 Áp dụng migration qua CLI (cần đặt connection string qua biến môi trường):
 
 ```bash
@@ -83,7 +85,7 @@ dotnet ef database update --project News.Infrastructure --startup-project News.A
 dotnet ef migrations add TenThayDoi --project News.Infrastructure --startup-project News.Api --output-dir Migrations/SqlServer
 ```
 
-Không dùng `EnsureCreated` lên database SQL Server đã quản lý bằng migrations. Database SQLite thực hành hiện tại không tự nâng schema khi entity thay đổi; cần tạo một file SQLite mới hoặc xây migrations SQLite riêng nếu muốn giữ dữ liệu qua các thay đổi schema.
+Không dùng `EnsureCreated` lên database SQL Server đã quản lý bằng migrations. Riêng chức năng bình luận/đánh giá có `SqliteFeedbackSchema.UpgradeAsync`: khi bật `Database:Initialize`, ứng dụng bổ sung idempotent hai bảng vào SQLite hiện có, không xóa dữ liệu. Những thay đổi schema khác vẫn cần kế hoạch migration riêng.
 
 ## 4. Khởi tạo môi trường triển khai
 

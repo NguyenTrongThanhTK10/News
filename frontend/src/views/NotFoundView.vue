@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Trang 404 của router khi URL không khớp route nào; khác với bài viết có ID nhưng API trả 404.
+// Không cần state hoặc request: chỉ ghép StatePanel và đường dẫn quay về trang chủ.
 import { RouterLink } from 'vue-router';
 import StatePanel from '../components/StatePanel.vue';
 </script>

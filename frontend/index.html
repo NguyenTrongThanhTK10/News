@@ -1,15 +1,19 @@
 <!doctype html>
+<!-- Điểm vào HTML; lang giúp trình duyệt/trình đọc màn hình biết nội dung là tiếng Việt. -->
 <html lang="vi">
   <head>
     <meta charset="UTF-8">
+    <!-- Dùng đúng chiều rộng thiết bị để các media query responsive hoạt động trên mobile. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#f8f7f4">
+    <meta name="theme-color" content="#3459e6">
     <meta name="description" content="TIN24 — Nhịp sống, góc nhìn và những câu chuyện đáng đọc mỗi ngày. Dự án tin tức minh họa.">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <title>Tin tức & góc nhìn | TIN24</title>
   </head>
   <body>
+    <!-- Vue gắn App.vue vào #app từ main.ts; các trang được router render bên trong khung này. -->
     <div id="app"></div>
+    <!-- type="module" cho phép dùng import/export; Vite biên dịch TypeScript khi phục vụ/build. -->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

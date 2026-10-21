@@ -112,6 +112,58 @@ namespace News.Infrastructure.Migrations.SqlServer
                     b.ToTable("Articles");
                 });
 
+            modelBuilder.Entity("News.Domain.ArticleComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArticleId", "CreatedAt", "Id");
+
+                    b.ToTable("Comments");
+                });
+
+            modelBuilder.Entity("News.Domain.ArticleRating", b =>
+                {
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisitorKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Stars")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ArticleId", "VisitorKey");
+
+                    b.ToTable("Ratings", t =>
+                        {
+                            t.HasCheckConstraint("CK_Ratings_Stars", "[Stars] BETWEEN 1 AND 5");
+                        });
+                });
+
             modelBuilder.Entity("News.Domain.Category", b =>
                 {
                     b.Property<string>("Slug")
@@ -215,6 +267,24 @@ namespace News.Infrastructure.Migrations.SqlServer
                         .WithMany()
                         .HasForeignKey("CategorySlug")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("News.Domain.ArticleComment", b =>
+                {
+                    b.HasOne("News.Domain.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("News.Domain.ArticleRating", b =>
+                {
+                    b.HasOne("News.Domain.Article", null)
+                        .WithMany()
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

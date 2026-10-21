@@ -1,0 +1,112 @@
+/* Giao diện ArticleFeedback.vue, được import sau style.css trong main.ts.
+   Tái sử dụng biến màu và các lớp button/form-field của CSS chung; không thay dữ liệu đánh giá. */
+.article-feedback { max-width: 900px; margin: 55px auto 0; padding-top: 35px; border-top: 1px solid var(--border); }
+.feedback-heading h2 { font-size: clamp(24px, 3vw, 30px); font-weight: 600; letter-spacing: -.9px; line-height: 1.5; margin: 10px 0; }
+.feedback-heading > p { font-size: 12px; line-height: 1.9; color: var(--muted); margin: 0 0 27px; }
+/* Desktop chia thống kê 240px và form đánh giá co giãn; mobile sẽ xếp hai phần theo chiều dọc. */
+.rating-panel { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 34px; padding: 28px; border: 1px solid #e2e7f3; background: #f7f8fd; border-radius: 15px; }
+.rating-overview { padding-right: 30px; border-right: 1px solid #e0e5f1; }
+.rating-overview h3, .comments-heading h3 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -.4px; }
+.rating-score { display: flex; align-items: baseline; gap: 9px; margin-top: 15px; }
+.rating-score strong { font-size: 47px; font-weight: 700; letter-spacing: -2px; line-height: 1.3; }
+.rating-score > span { font-size: 14px; color: var(--muted); }
+.rating-stars-static { display: flex; gap: 5px; color: #b17d20; margin: 7px 0 9px; }
+.rating-stars-static .pi { font-size: 13px; }
+.feedback-hint { font-size: 10px; line-height: 1.9; color: var(--muted); }
+.rating-distribution { display: flex; flex-direction: column; gap: 7px; margin-top: 17px; }
+.rating-distribution > div { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--muted); }
+.rating-distribution > div > span:first-child { display: inline-flex; gap: 4px; align-items: center; width: 23px; flex-shrink: 0; }
+.rating-distribution .pi { font-size: 8px; }
+.rating-distribution > div > span:last-child { min-width: 18px; text-align: right; }
+/* meter là thẻ biểu diễn tỷ lệ số lượt; pseudo-element riêng cho WebKit/Firefox giúp tô màu
+   thanh giá trị trên các trình duyệt. Chiều dài thực tế lấy từ value/max trong template. */
+.rating-distribution meter { width: 100%; min-width: 0; height: 7px; background: #e5e9f3; border: 0; border-radius: 8px; }
+.rating-distribution meter::-webkit-meter-bar { background: #e5e9f3; border: 0; border-radius: 8px; }
+.rating-distribution meter::-webkit-meter-optimum-value { background: #d2a044; border-radius: 8px; }
+.rating-distribution meter::-moz-meter-bar { background: #d2a044; border-radius: 8px; }
+.rating-form { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+.rating-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.rating-form legend { font-size: 14px; font-weight: 600; line-height: 1.8; }
+/* Mỗi sao là label bọc radio thật. Radio trong suốt phủ toàn ô nên vẫn chọn được bằng chuột
+   và bàn phím; lớp filled tô các sao theo selectedStars, không phải số điểm trung bình. */
+.star-picker { display: flex; gap: 8px; margin-top: 14px; }
+.star-picker label { display: grid; place-items: center; position: relative; width: 42px; height: 44px; border: 1px solid #dce2f0; border-radius: 8px; background: #fff; color: #8691aa; cursor: pointer; }
+.rating-radio { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; }
+.rating-radio:disabled { cursor: default; }
+.star-picker .pi { font-size: 22px; }
+.star-picker label.filled { color: #ac7618; border-color: #e7cc94; background: #fff8e9; }
+.star-picker label:hover { border-color: #c99c42; }
+/* :has(...) chọn label có input con đang focus, tạo viền bàn phím quanh toàn bộ ô sao. */
+.star-picker label:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 3px; }
+.rating-form fieldset:disabled label { cursor: default; opacity: .6; }
+.rating-selection { font-size: 11px; font-weight: 500; line-height: 1.9; margin: 12px 0 0; }
+.rating-form > .feedback-hint { max-width: 310px; margin: 7px 0 16px; }
+.article-feedback .button:disabled { cursor: default; opacity: .5; }
+.article-feedback .button-primary:disabled:hover { background: var(--accent); }
+/* Form bình luận: vùng nhập rộng, textarea chỉ kéo theo chiều dọc và có giới hạn chiều cao.
+   :disabled thể hiện lúc gửi; feedback-error/success là trạng thái do component quản lý. */
+.comments-section { margin-top: 35px; }
+.comments-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding-bottom: 21px; }
+.comments-heading .section-count { font-size: 10px; font-weight: 400; width: auto; min-width: 25px; padding-inline: 7px; }
+.comment-form { background: #fafbfe; padding: 24px; border: 1px solid var(--border); border-radius: 12px; }
+.comment-form .form-field { margin-bottom: 18px; }
+.comment-form .form-field:first-child { max-width: 340px; }
+.comment-form .form-field > label { font-size: 11px; }
+.feedback-input { font: inherit; font-size: 12px; color: #283755; background: #fff; border: 1px solid #dce2ee; border-radius: 8px; padding: 12px 14px; width: 100%; min-height: 44px; line-height: 1.8; }
+textarea.feedback-input { resize: vertical; min-height: 120px; max-height: 500px; }
+.feedback-input:focus { outline: 2px solid #3459e633; border-color: var(--accent); }
+.feedback-input::placeholder { color: #8390a5; }
+.feedback-input:disabled { opacity: .65; }
+.comment-field-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; color: var(--muted); font-size: 9px; line-height: 1.8; }
+.comment-field-meta small { font-size: inherit; }
+.comment-field-meta > span { flex-shrink: 0; }
+.comment-form-bottom { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 13px; }
+.comment-form-bottom > span { display: inline-flex; align-items: center; gap: 7px; }
+.comment-form-bottom .button { font-size: 11px; }
+.feedback-error, .feedback-success { font-size: 11px; line-height: 1.9; margin: 15px 0 0; overflow-wrap: anywhere; }
+.feedback-error { color: #a93636; }
+.feedback-error p { margin: 0; }
+.feedback-success { color: #28705d; }
+.feedback-loading { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; padding-block: 20px; }
+/* Danh sách bình luận: avatar cố định và nội dung co giãn. min-width: 0 cho phép nội dung
+   flex thu nhỏ; overflow-wrap xử lý chuỗi dài, white-space: pre-wrap giữ xuống dòng của người nhập. */
+.reader-comment { display: flex; gap: 14px; padding: 24px 0; border-bottom: 1px solid var(--border); }
+.comment-avatar { display: grid; place-items: center; width: 37px; height: 37px; flex: 0 0 37px; background: #edf0ff; color: #526ac8; border-radius: 50%; font-size: 14px; font-weight: 500; }
+.comment-main { min-width: 0; flex: 1; }
+.comment-main header { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; padding-top: 2px; }
+.comment-main strong { font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+.comment-main time { color: var(--muted); font-size: 9px; }
+.comment-main > p { font-size: 12px; line-height: 2; color: #3b4963; margin: 10px 0 0; white-space: pre-wrap; }
+.comments-empty { padding: 36px 20px; text-align: center; color: var(--muted); }
+.comments-empty > .pi { display: block; font-size: 29px; color: #899acb; margin-bottom: 16px; }
+.comments-empty strong { font-size: 13px; font-weight: 500; }
+.comments-empty p { font-size: 11px; line-height: 1.9; margin: 9px 0 0; }
+.comment-pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 22px; }
+.comment-pagination .button { font-size: 10px; padding-inline: 13px; gap: 6px; }
+.comment-pagination > span { font-size: 10px; color: var(--muted); white-space: nowrap; }
+/* Mobile: xếp phần đánh giá thành một cột, nút gửi bình luận đủ chiều ngang,
+   phân trang có thể xuống dòng để không gây cuộn ngang toàn trang. */
+@media (max-width: 650px) {
+  .article-feedback { margin-top: 38px; padding-top: 28px; }
+  .feedback-heading h2 { font-size: 24px; }
+  .feedback-heading > p { font-size: 11px; }
+  .rating-panel { grid-template-columns: 1fr; gap: 24px; padding: 22px; }
+  .rating-overview { border-right: 0; border-bottom: 1px solid #e0e5f1; padding: 0 0 22px; }
+  .rating-distribution { max-width: 300px; }
+  .rating-score { margin-top: 10px; }
+  .rating-form { align-items: stretch; }
+  .rating-form > .button { align-self: flex-start; }
+  .star-picker { gap: 7px; }
+  .star-picker label { width: 40px; }
+  .star-picker .pi { font-size: 20px; }
+  .comment-form { padding: 19px; }
+  .comment-form-bottom > span { font-size: 9px; }
+  .comment-form-bottom .button { width: 100%; }
+  .comment-field-meta { font-size: 8px; gap: 8px; }
+  .comment-form .form-field:first-child { max-width: none; }
+  .reader-comment { gap: 11px; }
+  .comment-main > p { font-size: 11px; }
+  .comment-pagination { gap: 7px; flex-wrap: wrap; }
+  .comment-pagination > span { width: 100%; text-align: center; order: -1; }
+  .comment-pagination .button { flex: 1; font-size: 9px; padding-inline: 8px; }
+}
