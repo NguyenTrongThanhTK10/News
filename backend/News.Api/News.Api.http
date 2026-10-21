@@ -1,0 +1,49 @@
+@host = http://localhost:5080
+
+### Database health
+GET {{host}}/health
+
+### Tìm kiếm không dấu và phân trang
+GET {{host}}/api/articles?search=tri%20tue%20nhan%20tao&page=1&pageSize=9
+
+### Chuyên mục
+GET {{host}}/api/categories
+
+### Đăng nhập bằng tài khoản thực hành (chỉ Development)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "author@tin24.local",
+  "password": "Tin24@Author2026!"
+}
+
+### Sao chép accessToken ở response đăng nhập vào biến này
+@token = PASTE_ACCESS_TOKEN_HERE
+
+### Danh sách quản trị theo quyền tài khoản
+GET {{host}}/api/admin/articles?page=1&pageSize=10
+Authorization: Bearer {{token}}
+
+### Tạo bản nháp
+POST {{host}}/api/admin/articles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Câu chuyện đầu tiên trong tòa soạn",
+  "summary": "Đây là bản nháp thực hành để tìm hiểu API tạo bài và gửi duyệt.",
+  "content": "<p>Nội dung câu chuyện đủ dài để kiểm tra việc lưu dữ liệu, duyệt và xuất bản.</p>",
+  "categorySlug": "doi-song",
+  "imageUrl": "https://images.unsplash.com/photo-1449824913935-59a10b8d2000",
+  "readingMinutes": 3
+}
+
+### Thay ID và Version từ response trước khi gọi; sau mỗi thao tác dùng Version mới
+@articleId = 13
+@version = PASTE_VERSION_GUID_HERE
+POST {{host}}/api/admin/articles/{{articleId}}/submit
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "version": "{{version}}" }
