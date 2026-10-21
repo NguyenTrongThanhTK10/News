@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,11 +11,54 @@ namespace News.Api.Controllers;
 public sealed class AuthController(IAuthService auth, IConfiguration config, IWebHostEnvironment environment) : ControllerBase
 {
     private const string CookieName = "tin24.refresh";
+    private const string GoogleNonceCookie = "tin24.google-nonce";
+
+    [HttpPost("register")]
+    [EnableRateLimiting("login")]
+    public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request, CancellationToken ct)
+    {
+        VerifyOrigin();
+        Response.Headers.CacheControl = "no-store";
+        var result = await auth.RegisterAsync(request, ct);
+        SetCookie(result);
+        return StatusCode(StatusCodes.Status201Created, result.Response);
+    }
+
+    [HttpGet("google/options")]
+    public IActionResult GoogleOptions()
+    {
+        Response.Headers.CacheControl = "no-store";
+        var clientId = config["Google:ClientId"];
+        if (string.IsNullOrWhiteSpace(clientId)) return Ok(new { clientId = (string?)null, nonce = (string?)null });
+        var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        var options = Options;
+        options.MaxAge = TimeSpan.FromMinutes(10);
+        Response.Cookies.Append(GoogleNonceCookie, nonce, options);
+        return Ok(new { clientId, nonce });
+    }
+
+    [HttpPost("google")]
+    [EnableRateLimiting("login")]
+    public async Task<ActionResult<AuthResponse>> GoogleLogin(GoogleLoginRequest request, CancellationToken ct)
+    {
+        VerifyOrigin();
+        Response.Headers.CacheControl = "no-store";
+        if (string.IsNullOrWhiteSpace(config["Google:ClientId"]))
+            return Problem(statusCode: 503, title: "Đăng nhập Google hiện chưa khả dụng. Vui lòng dùng email và mật khẩu.");
+        var nonce = Request.Cookies[GoogleNonceCookie];
+        if (nonce is null || nonce.Length != 64 || !nonce.All(char.IsAsciiHexDigit))
+            return Problem(statusCode: 401, title: "Phiên đăng nhập Google đã hết hạn. Vui lòng mở lại biểu mẫu.");
+        var result = await auth.GoogleLoginAsync(request, nonce, ct);
+        Response.Cookies.Delete(GoogleNonceCookie, Options);
+        SetCookie(result);
+        return Ok(result.Response);
+    }
 
     [HttpPost("login")]
     [EnableRateLimiting("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request, CancellationToken ct)
     {
+        VerifyOrigin();
         Response.Headers.CacheControl = "no-store";
         var result = await auth.LoginAsync(request, ct);
         if (result is null) return Problem(statusCode: 401, title: "Email hoặc mật khẩu không đúng, hoặc tài khoản tạm khóa.");

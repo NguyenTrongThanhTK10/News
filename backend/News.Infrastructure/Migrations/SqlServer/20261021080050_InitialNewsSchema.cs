@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace News.Infrastructure.Migrations.SqlServer
 {
     /// <inheritdoc />
@@ -24,6 +26,19 @@ namespace News.Infrastructure.Migrations.SqlServer
                 });
 
             migrationBuilder.CreateTable(
+                name: "RoleDefinitions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: false),
+                    BaseRole = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RoleDefinitions", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -31,7 +46,9 @@ namespace News.Infrastructure.Migrations.SqlServer
                     Email = table.Column<string>(type: "nvarchar(254)", maxLength: 254, nullable: false),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    GoogleSubject = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true),
                     Role = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    RoleDefinitionId = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: true),
                     FailedLogins = table.Column<int>(type: "int", nullable: false),
                     LockedUntil = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Version = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
@@ -39,6 +56,12 @@ namespace News.Infrastructure.Migrations.SqlServer
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Users", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Users_RoleDefinitions_RoleDefinitionId",
+                        column: x => x.RoleDefinitionId,
+                        principalTable: "RoleDefinitions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -103,6 +126,66 @@ namespace News.Infrastructure.Migrations.SqlServer
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "Comments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ArticleId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    DisplayName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Content = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Comments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Comments_Articles_ArticleId",
+                        column: x => x.ArticleId,
+                        principalTable: "Articles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Comments_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Ratings",
+                columns: table => new
+                {
+                    ArticleId = table.Column<int>(type: "int", nullable: false),
+                    VisitorKey = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    Stars = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Ratings", x => new { x.ArticleId, x.VisitorKey });
+                    table.CheckConstraint("CK_Ratings_Stars", "[Stars] BETWEEN 1 AND 5");
+                    table.ForeignKey(
+                        name: "FK_Ratings_Articles_ArticleId",
+                        column: x => x.ArticleId,
+                        principalTable: "Articles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.InsertData(
+                table: "RoleDefinitions",
+                columns: new[] { "Id", "BaseRole", "Name" },
+                values: new object[,]
+                {
+                    { "Admin", "Admin", "Quản trị viên" },
+                    { "Author", "Author", "Tác giả" },
+                    { "Editor", "Editor", "Biên tập viên" },
+                    { "Reader", "Reader", "Độc giả" }
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_Articles_AuthorId_Status",
                 table: "Articles",
@@ -117,6 +200,22 @@ namespace News.Infrastructure.Migrations.SqlServer
                 name: "IX_Articles_IsDeleted_Status_PublishedAt",
                 table: "Articles",
                 columns: new[] { "IsDeleted", "Status", "PublishedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Comments_ArticleId_CreatedAt_Id",
+                table: "Comments",
+                columns: new[] { "ArticleId", "CreatedAt", "Id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Comments_UserId",
+                table: "Comments",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RoleDefinitions_Name",
+                table: "RoleDefinitions",
+                column: "Name",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Sessions_RefreshTokenHash",
@@ -134,22 +233,43 @@ namespace News.Infrastructure.Migrations.SqlServer
                 table: "Users",
                 column: "Email",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_GoogleSubject",
+                table: "Users",
+                column: "GoogleSubject",
+                unique: true,
+                filter: "[GoogleSubject] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_RoleDefinitionId",
+                table: "Users",
+                column: "RoleDefinitionId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Articles");
+                name: "Comments");
+
+            migrationBuilder.DropTable(
+                name: "Ratings");
 
             migrationBuilder.DropTable(
                 name: "Sessions");
+
+            migrationBuilder.DropTable(
+                name: "Articles");
 
             migrationBuilder.DropTable(
                 name: "Categories");
 
             migrationBuilder.DropTable(
                 name: "Users");
+
+            migrationBuilder.DropTable(
+                name: "RoleDefinitions");
         }
     }
 }

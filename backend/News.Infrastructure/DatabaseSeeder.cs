@@ -10,15 +10,27 @@ public static class DatabaseSeeder
 {
     public static async Task SeedAsync(NewsDbContext db, IPasswordHasher<User> hasher, IConfiguration config, bool allowDemo)
     {
-        if (!await db.Categories.AnyAsync())
-        {
-            db.Categories.AddRange(new[] {
-                new Category { Slug = "cong-nghe", Name = "Công nghệ" }, new Category { Slug = "doi-song", Name = "Đời sống" },
-                new Category { Slug = "du-lich", Name = "Du lịch" }, new Category { Slug = "van-hoa", Name = "Văn hóa" },
-                new Category { Slug = "giao-duc", Name = "Giáo dục" }, new Category { Slug = "the-thao", Name = "Thể thao" },
-            });
-            await db.SaveChangesAsync();
-        }
+        foreach (var role in new[] {
+            new RoleDefinition { Id = Roles.Reader, Name = "Độc giả", BaseRole = Roles.Reader },
+            new RoleDefinition { Id = Roles.Admin, Name = "Quản trị viên", BaseRole = Roles.Admin },
+            new RoleDefinition { Id = Roles.Editor, Name = "Biên tập viên", BaseRole = Roles.Editor },
+            new RoleDefinition { Id = Roles.Author, Name = "Tác giả", BaseRole = Roles.Author },
+        })
+            if (!await db.RoleDefinitions.AnyAsync(r => r.Id == role.Id)) db.RoleDefinitions.Add(role);
+        await db.SaveChangesAsync();
+        // Bổ sung chuyên mục còn thiếu cả khi DB đã có dữ liệu, giữ các danh mục tự tạo.
+        var existingSlugs = (await db.Categories.Select(c => c.Slug).ToArrayAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        db.Categories.AddRange(new[] {
+            new Category { Slug = "thoi-su", Name = "Thời sự" }, new Category { Slug = "the-gioi", Name = "Thế giới" },
+            new Category { Slug = "kinh-te", Name = "Kinh tế" }, new Category { Slug = "phap-luat", Name = "Pháp luật" },
+            new Category { Slug = "suc-khoe", Name = "Sức khỏe" }, new Category { Slug = "khoa-hoc", Name = "Khoa học" },
+            new Category { Slug = "giai-tri", Name = "Giải trí" }, new Category { Slug = "xe", Name = "Xe" },
+            new Category { Slug = "bat-dong-san", Name = "Bất động sản" },
+            new Category { Slug = "cong-nghe", Name = "Công nghệ" }, new Category { Slug = "doi-song", Name = "Đời sống" },
+            new Category { Slug = "du-lich", Name = "Du lịch" }, new Category { Slug = "van-hoa", Name = "Văn hóa" },
+            new Category { Slug = "giao-duc", Name = "Giáo dục" }, new Category { Slug = "the-thao", Name = "Thể thao" },
+        }.Where(category => !existingSlugs.Contains(category.Slug)));
+        await db.SaveChangesAsync();
         if (allowDemo && bool.TryParse(config["Seed:DemoData"], out var demoData) && demoData)
         {
             await AddUser("admin@tin24.local", "Quản trị viên", Roles.Admin, "Tin24@Admin2026!");
@@ -71,7 +83,7 @@ public static class DatabaseSeeder
             email = email.Trim().ToLowerInvariant();
             var existing = await db.Users.SingleOrDefaultAsync(u => u.Email == email);
             if (existing is not null) return existing;
-            var user = new User { Email = email, Name = name, Role = role };
+            var user = new User { Email = email, Name = name, Role = role, RoleDefinitionId = role };
             user.PasswordHash = hasher.HashPassword(user, password);
             db.Users.Add(user);
             await db.SaveChangesAsync();

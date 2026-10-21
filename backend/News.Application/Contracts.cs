@@ -71,6 +71,6 @@ public sealed class LoginRequest
     [Required, EmailAddress, StringLength(254)] public string Email { get; init; } = "";
     [Required, StringLength(200)] public string Password { get; init; } = "";
 }
-public sealed record UserDto(Guid Id, string Name, string Email, string Role);
+public sealed record UserDto(Guid Id, string Name, string Email, string Role, string? RoleName = null);
 public sealed record AuthResponse(string AccessToken, DateTime ExpiresAt, UserDto User);
 public sealed record AuthSessionResult(AuthResponse Response, string RefreshToken, DateTime RefreshExpiresAt);

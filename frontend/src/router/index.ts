@@ -20,6 +20,9 @@ const router = createRouter({
       { path: '', name: 'admin', component: () => import('../views/admin/ArticleListView.vue') },
       { path: 'bai-viet/tao-moi', name: 'article-new', component: () => import('../views/admin/ArticleEditorView.vue'), meta: { title: 'Soạn bài viết' } },
       { path: 'bai-viet/:id/sua', name: 'article-edit', component: () => import('../views/admin/ArticleEditorView.vue'), meta: { title: 'Biên tập bài viết' } },
+      { path: 'nguoi-dung', name: 'admin-users', component: () => import('../views/admin/UserListView.vue'), meta: { title: 'Người dùng', requiresAdmin: true } },
+      { path: 'vai-tro', name: 'admin-roles', component: () => import('../views/admin/RoleListView.vue'), meta: { title: 'Vai trò', requiresAdmin: true } },
+      { path: 'danh-muc', name: 'admin-categories', component: () => import('../views/admin/CategoryListView.vue'), meta: { title: 'Danh mục bài viết', requiresAdmin: true } },
     ] },
     // Route bắt mọi đường dẫn còn lại, dùng cho trang 404 ở frontend.
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue'), meta: { title: 'Không tìm thấy trang' } },
@@ -42,7 +45,9 @@ router.beforeEach(async to => {
     const auth = useAuthStore();
     await auth.initialize();
     if (to.meta.requiresAuth && !auth.user) return { name: 'login', query: { redirect: to.fullPath } };
-    if (to.name === 'login' && auth.user) return { name: 'admin' };
+    if (to.meta.requiresAuth && !auth.isStaff) return { name: 'home' };
+    if (to.meta.requiresAdmin && !auth.isAdmin) return { name: 'admin' };
+    if (to.name === 'login' && auth.user) return { name: auth.isStaff ? 'admin' : 'home' };
   }
   return true;
 });

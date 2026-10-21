@@ -4,6 +4,7 @@ public sealed class ArticleComment
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public int ArticleId { get; set; }
+    public Guid? UserId { get; set; }
     public string DisplayName { get; set; } = "";
     public string Content { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

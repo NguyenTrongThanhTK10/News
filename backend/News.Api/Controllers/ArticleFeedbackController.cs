@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
+using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using News.Application;
@@ -18,10 +20,12 @@ public sealed class ArticleFeedbackController(ArticleFeedbackService service, IW
         Ok(await service.GetCommentsAsync(id, query, ct));
 
     [HttpPost("comments")]
+    [Authorize]
     [EnableRateLimiting("feedback")]
     public async Task<ActionResult<CommentDto>> AddComment(int id, CreateCommentRequest request, CancellationToken ct)
     {
-        var comment = await service.AddCommentAsync(id, request, ct);
+        var author = new CommentAuthor(Guid.Parse(User.FindFirstValue("sub")!), User.Identity!.Name!);
+        var comment = await service.AddCommentAsync(id, request, author, ct);
         return StatusCode(StatusCodes.Status201Created, comment);
     }
 

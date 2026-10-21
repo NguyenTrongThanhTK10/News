@@ -1,4 +1,7 @@
-﻿BEGIN TRANSACTION;
+﻿-- Legacy: chi nang cap database dang dung lich su migration cu.
+-- Khong chay sau script 001 moi. Xem docs/SQL_SERVER.md.
+
+BEGIN TRANSACTION;
 GO
 
 IF NOT EXISTS (

@@ -34,11 +34,14 @@ builder.Services.AddDbContext<NewsDbContext>(options =>
 builder.Services.AddScoped<IArticleRepository, EfArticleRepository>();
 builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<ArticleManagementService>();
+builder.Services.AddScoped<AdministrationService>();
 builder.Services.AddScoped<IArticleFeedbackRepository, EfArticleFeedbackRepository>();
 builder.Services.AddScoped<ArticleFeedbackService>();
 builder.Services.AddSingleton<IHtmlContentSanitizer, HtmlContentSanitizer>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.Configure<GoogleAuthOptions>(builder.Configuration.GetSection("Google"));
+builder.Services.AddSingleton<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
 builder.Services.AddOptions<JwtOptions>().Bind(builder.Configuration.GetSection("Jwt"))
     .Validate(value => Encoding.UTF8.GetByteCount(value.SigningKey) >= 32,
         "Cấu hình Jwt:SigningKey tối thiểu 32 byte bằng user-secrets hoặc biến môi trường.")
@@ -79,10 +82,10 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = 429;
     options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
-        { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        { PermitLimit = Math.Clamp(builder.Configuration.GetValue("RateLimits:LoginPermitLimit", 20), 1, 1000), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     options.AddPolicy("feedback", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
-        { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        { PermitLimit = Math.Clamp(builder.Configuration.GetValue("RateLimits:FeedbackPermitLimit", 12), 1, 1000), Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 
@@ -105,6 +108,8 @@ if (app.Configuration.GetValue<bool>("Database:Initialize"))
     {
         await db.Database.EnsureCreatedAsync();
         await SqliteFeedbackSchema.UpgradeAsync(db);
+        await SqliteAdministrationSchema.UpgradeAsync(db);
+        await SqliteReaderSchema.UpgradeAsync(db);
     }
     else await db.Database.MigrateAsync();
     await DatabaseSeeder.SeedAsync(db, scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>(),

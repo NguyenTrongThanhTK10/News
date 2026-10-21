@@ -1,10 +1,10 @@
 import type { Article } from './news';
 // Union type (các giá trị nối bằng |) giới hạn chuỗi được phép dùng, tránh gõ sai tên.
 // Giá trị phải khớp hợp đồng API; nhãn tiếng Việt được ánh xạ trong utils/workflow.ts.
-export type Role = 'Admin' | 'Editor' | 'Author';
+export type Role = 'Admin' | 'Editor' | 'Author' | 'Reader';
 export type ArticleStatus = 'Draft' | 'PendingReview' | 'Approved' | 'Published' | 'Rejected' | 'Archived';
 // Chỉ giữ thông tin người dùng phục vụ giao diện, không có mật khẩu trong kiểu này.
-export interface User { id: string; name: string; email: string; role: Role; }
+export interface User { id: string; name: string; email: string; role: Role; roleName?: string | null; }
 // accessToken được http.ts giữ trong bộ nhớ. Cookie refresh do trình duyệt và server quản lý.
 export interface AuthResponse { accessToken: string; expiresAt: string; user: User; }
 export interface AdminArticle {
@@ -20,3 +20,10 @@ export interface SaveArticleRequest {
 }
 // Tên thao tác tương ứng đoạn cuối endpoint /admin/articles/:id/:action.
 export type ArticleAction = 'submit' | 'approve' | 'reject' | 'publish' | 'unpublish' | 'archive' | 'restore';
+
+export interface ManagedRole { id: string; name: string; baseRole: Role; userCount: number; }
+export interface ManagedUser extends User { roleId: string; roleName: string; version: string; }
+export interface CreateUserRequest { name: string; email: string; password: string; roleId: string; }
+export interface CreateRoleRequest { name: string; baseRole: Role; }
+export interface CreateCategoryRequest { name: string; slug: string; }
+export interface RegisterRequest { name: string; email: string; password: string; }

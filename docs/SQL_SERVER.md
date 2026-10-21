@@ -68,9 +68,27 @@ Sinh script có thể chạy lại an toàn theo bảng lịch sử migration:
 dotnet ef migrations script --idempotent --project News.Infrastructure --startup-project News.Api --output sql/001-initial-schema.sql
 ```
 
-Script đã sinh sẵn: [`backend/sql/001-initial-schema.sql`](../backend/sql/001-initial-schema.sql). Script cần được chạy trong database `Tin24` đã tạo, bằng SSMS/sqlcmd. Script chỉ tạo schema, không chứa mật khẩu hay tài khoản ứng dụng.
+Lịch sử đã được gộp thành **một migration `20261021080050_InitialNewsSchema`**, tạo đủ bảy bảng: `Articles`, `Categories`, `Users`, `RoleDefinitions`, `Sessions`, `Comments`, `Ratings`; bao gồm khóa ngoại, chỉ mục, định danh Google, tài khoản của bình luận và bốn vai trò mặc định.
 
-Chức năng bình luận/đánh giá bổ sung migration `AddArticleFeedback`. Database đã chạy schema ban đầu cần áp dụng [`backend/sql/002-article-feedback.sql`](../backend/sql/002-article-feedback.sql), hoặc dùng `dotnet ef database update` để áp dụng mọi migration còn thiếu. Với database mới, chạy `001` rồi `002`; script `002` chỉ thêm hai bảng cùng chỉ mục/ràng buộc, không thay đổi bài viết hay tài khoản hiện có. Script này đã được sinh bằng provider SQL Server nhưng chưa chạy trên SQL Server thật.
+Thư mục `Migrations/SqlServer` còn ba file theo cấu trúc EF:
+
+- `20261021080050_InitialNewsSchema.cs`: tạo/hoàn tác toàn bộ cấu trúc.
+- `20261021080050_InitialNewsSchema.Designer.cs`: metadata của migration.
+- `NewsDbContextModelSnapshot.cs`: mô hình để EF sinh các thay đổi tiếp theo.
+
+**Database SQL Server mới:** chạy riêng [`backend/sql/001-initial-schema.sql`](../backend/sql/001-initial-schema.sql) trong database `Tin24` rỗng đã tạo, hoặc dùng CLI bên dưới. Script đã bao gồm mọi tính năng; không chạy thêm `002`–`004`. Script tạo schema và vai trò mặc định, không chứa mật khẩu hay tài khoản ứng dụng. Chưa áp dụng trên SQL Server thật.
+
+**Database SQL Server đã có lịch sử cũ:** không chạy script `001` mới hoặc bật `Database:Initialize=true` trước khi đồng bộ lịch sử. EF sẽ coi migration gộp là chưa áp dụng và cố tạo lại những bảng đã có. Việc gộp mã nguồn không tự đổi database hay lịch sử của nó.
+
+Để giữ dữ liệu khi chuyển baseline:
+
+1. Sao lưu database và đối chiếu cấu trúc hiện có.
+2. Hoàn tất các migration cũ nếu còn thiếu. Các script [`002-article-feedback.sql`](../backend/sql/002-article-feedback.sql), [`003-administration.sql`](../backend/sql/003-administration.sql), [`004-reader-accounts.sql`](../backend/sql/004-reader-accounts.sql) được giữ riêng để nâng cấp database đang có lịch sử `20261021050018_InitialNewsSchema`; không dùng cho database được tạo bằng baseline mới.
+3. Xác nhận đủ bảy bảng, các cột hiện tại, bốn vai trò và các ràng buộc tương ứng với migration gộp.
+4. Trong một transaction, thay bốn bản ghi migration cũ của ứng dụng trong `__EFMigrationsHistory` bằng bản ghi `MigrationId = 20261021080050_InitialNewsSchema`, `ProductVersion = 8.0.32`. Không thay đổi các bảng dữ liệu, không xóa lịch sử của ứng dụng/DbContext khác nếu dùng chung bảng lịch sử.
+5. Kiểm tra `dotnet ef migrations list` chỉ còn migration gộp đã áp dụng, rồi mới triển khai các migration mới hơn.
+
+Đây là bước chuyển lịch sử có kiểm soát, chưa được thực hiện trên database nào trong lần gộp này. Tham khảo [hướng dẫn gộp migration của Microsoft](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/managing#resetting-all-migrations).
 
 Áp dụng migration qua CLI (cần đặt connection string qua biến môi trường):
 
@@ -85,7 +103,7 @@ dotnet ef database update --project News.Infrastructure --startup-project News.A
 dotnet ef migrations add TenThayDoi --project News.Infrastructure --startup-project News.Api --output-dir Migrations/SqlServer
 ```
 
-Không dùng `EnsureCreated` lên database SQL Server đã quản lý bằng migrations. Riêng chức năng bình luận/đánh giá có `SqliteFeedbackSchema.UpgradeAsync`: khi bật `Database:Initialize`, ứng dụng bổ sung idempotent hai bảng vào SQLite hiện có, không xóa dữ liệu. Những thay đổi schema khác vẫn cần kế hoạch migration riêng.
+Không dùng `EnsureCreated` lên database SQL Server đã quản lý bằng migrations. Riêng chức năng bình luận/đánh giá có `SqliteFeedbackSchema.UpgradeAsync`: khi bật `Database:Initialize`, ứng dụng bổ sung idempotent hai bảng vào SQLite hiện có, không xóa dữ liệu. Quản trị tài khoản có `SqliteAdministrationSchema.UpgradeAsync` để bổ sung bảng vai trò và liên kết người dùng vào SQLite hiện có; bước này cũng giữ dữ liệu và có thể chạy lại. `SqliteReaderSchema.UpgradeAsync` bổ sung định danh Google, tài khoản của bình luận và vai trò Reader, giữ nguyên dữ liệu cũ. Những thay đổi schema khác vẫn cần kế hoạch migration riêng.
 
 ## 4. Khởi tạo môi trường triển khai
 

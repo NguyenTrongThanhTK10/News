@@ -38,7 +38,13 @@ test('learning center covers all five parts and interactive Vue examples', async
 
 test('author creates draft and submits; editor approves and publishes', async ({ page, browser }, testInfo) => {
   await login(page, 'Author');
-  await page.getByRole('link', { name: 'Soạn bài mới', exact: true }).last().click();
+  if (testInfo.project.name === 'mobile') await page.getByRole('button', { name: 'Mở menu quản trị' }).click();
+  const newsMenu = page.getByRole('button', { name: 'Quản lý tin tức', exact: true });
+  await expect(newsMenu).toHaveAttribute('aria-expanded', 'true');
+  await newsMenu.click();
+  await expect(newsMenu).toHaveAttribute('aria-expanded', 'false');
+  await newsMenu.click();
+  await page.getByRole('navigation', { name: 'Điều hướng quản trị' }).getByRole('link', { name: 'Soạn bài mới', exact: true }).click();
   const title = `Câu chuyện E2E ${testInfo.project.name} ${Date.now()}`;
   await page.getByLabel('Tiêu đề', { exact: false }).fill(title);
   await page.getByLabel('Mô tả ngắn', { exact: false }).fill('Một câu chuyện được tạo để kiểm tra trình soạn thảo và toàn bộ quy trình biên tập.');

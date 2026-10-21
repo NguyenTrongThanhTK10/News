@@ -11,6 +11,6 @@ export default defineConfig({
     strictPort: true,
     // Trong lúc phát triển, /api được chuyển tới ASP.NET Core ở cổng 5080.
     // Trình duyệt chỉ gọi địa chỉ frontend; khi triển khai cần cấu hình API/proxy tương ứng riêng.
-    proxy: { '/api': 'http://localhost:5080' },
+    proxy: { '/api': process.env.VITE_PROXY_TARGET || 'http://localhost:5080' },
   },
 });

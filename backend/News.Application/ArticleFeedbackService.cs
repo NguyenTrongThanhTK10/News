@@ -11,7 +11,6 @@ public sealed class CommentQuery
 
 public sealed class CreateCommentRequest
 {
-    [Required, StringLength(80, MinimumLength = 2)] public string DisplayName { get; init; } = "";
     [Required, StringLength(2000, MinimumLength = 5)] public string Content { get; init; } = "";
 }
 
@@ -43,14 +42,14 @@ public sealed class ArticleFeedbackService(IArticleRepository articles, IArticle
         return new(page.Items.Select(CommentDto.FromComment).ToArray(), page.TotalCount, query.Page, query.PageSize);
     }
 
-    public async Task<CommentDto> AddCommentAsync(int id, CreateCommentRequest request, CancellationToken ct)
+    public async Task<CommentDto> AddCommentAsync(int id, CreateCommentRequest request, CommentAuthor author, CancellationToken ct)
     {
         await RequirePublishedArticle(id, ct);
-        var name = request.DisplayName?.Trim() ?? "";
+        var name = author.Name.Trim();
         var content = request.Content?.Trim() ?? "";
-        if (name.Length is < 2 or > 80 || content.Length is < 5 or > 2000)
-            throw new BusinessException(400, "Tên hiển thị cần 2–80 ký tự, bình luận cần 5–2000 ký tự sau khi bỏ khoảng trắng.");
-        var comment = await feedback.AddCommentAsync(new ArticleComment { ArticleId = id, DisplayName = name, Content = content }, ct);
+        if (name.Length is < 1 or > 100 || content.Length is < 5 or > 2000)
+            throw new BusinessException(400, "Bình luận cần 5–2000 ký tự sau khi bỏ khoảng trắng.");
+        var comment = await feedback.AddCommentAsync(new ArticleComment { ArticleId = id, UserId = author.Id, DisplayName = name, Content = content }, ct);
         return CommentDto.FromComment(comment);
     }
 

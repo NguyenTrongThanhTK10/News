@@ -11,9 +11,9 @@ export async function getComments(id: number, page = 1, signal?: AbortSignal) {
 }
 
 // { data } là destructuring: lấy trực tiếp trường data từ Axios response.
-// Payload chỉ gửi tên và văn bản; ID và thời gian bình luận được server tạo.
-export async function postComment(id: number, displayName: string, content: string, signal?: AbortSignal) {
-  const { data } = await api.post<ArticleComment>(`/articles/${id}/comments`, { displayName, content }, { signal });
+// Tên và tài khoản bình luận được backend lấy từ phiên đăng nhập.
+export async function postComment(id: number, content: string, signal?: AbortSignal) {
+  const { data } = await api.post<ArticleComment>(`/articles/${id}/comments`, { content }, { signal });
   return data;
 }
 

@@ -77,9 +77,10 @@ public sealed class ArticleServiceTests : IAsyncLifetime
     public async Task CategoriesCoverAllArticles()
     {
         var categories = await _service.GetCategoriesAsync();
-        Assert.Equal(6, categories.Count);
+        Assert.Equal(15, categories.Count);
         Assert.Equal(12, categories.Sum(category => category.Count));
-        Assert.All(categories, category => Assert.Equal(2, category.Count));
+        Assert.Equal(6, categories.Count(category => category.Count > 0));
+        Assert.All(categories, category => Assert.Contains(category.Count, new[] { 0, 2 }));
     }
 
     [Theory]

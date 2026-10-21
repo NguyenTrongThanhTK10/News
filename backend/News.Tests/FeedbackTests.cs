@@ -17,15 +17,36 @@ public sealed class FeedbackTests : IDisposable
     private readonly NewsApiFactory _factory = new();
     public void Dispose() => _factory.Dispose();
 
+    private async Task<HttpClient> SignedIn()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/login", new { email = "author@tin24.local", password = "Tin24@Author2026!" });
+        response.EnsureSuccessStatusCode();
+        var session = (await response.Content.ReadFromJsonAsync<AuthResponse>())!;
+        client.DefaultRequestHeaders.Authorization = new("Bearer", session.AccessToken);
+        return client;
+    }
+
+    [Fact]
+    public async Task AnonymousCanReadButCannotPostComments()
+    {
+        using var client = _factory.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/articles/1/comments")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/articles/1/comments", new { content = "Chưa có tài khoản" })).StatusCode);
+    }
+
     [Fact]
     public async Task CommentsPersistAndRemainPlainTextAcrossClients()
     {
-        using var client = _factory.CreateClient();
+        using var client = await SignedIn();
         var text = "<script>alert('xss')</script> Một góc nhìn đáng suy ngẫm.";
         var response = await client.PostAsJsonAsync("/api/articles/1/comments", new { displayName = "  Minh An  ", content = $"  {text}  " });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var comment = await response.Content.ReadFromJsonAsync<CommentDto>();
-        Assert.Equal("Minh An", comment!.DisplayName);
+        Assert.Equal("Tác giả", comment!.DisplayName);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var savedAuthorId = await scope.ServiceProvider.GetRequiredService<NewsDbContext>().Comments.Select(c => c.UserId).SingleAsync();
+        Assert.NotNull(savedAuthorId);
         Assert.Equal(text, comment.Content);
         Assert.Equal(DateTimeKind.Utc, comment.CreatedAt.Kind);
         using var reader = _factory.CreateClient();
@@ -38,7 +59,7 @@ public sealed class FeedbackTests : IDisposable
     [Fact]
     public async Task CommentsPaginateWithoutDuplicatesAndLargePagesDoNotOverflow()
     {
-        using var client = _factory.CreateClient();
+        using var client = await SignedIn();
         for (var i = 0; i < 4; i++)
             (await client.PostAsJsonAsync("/api/articles/1/comments", new { displayName = "Độc giả", content = $"Bình luận số {i}" })).EnsureSuccessStatusCode();
         var first = await client.GetFromJsonAsync<PagedResult<CommentDto>>("/api/articles/1/comments?pageSize=2");
@@ -51,13 +72,11 @@ public sealed class FeedbackTests : IDisposable
     }
 
     [Theory]
-    [InlineData(" ", "Bình luận hợp lệ")]
-    [InlineData(" a ", "Bình luận hợp lệ")]
     [InlineData("Độc giả", "   ")]
     [InlineData("Độc giả", "  ab  ")]
     public async Task CommentValidationUsesTrimmedContent(string displayName, string content)
     {
-        using var client = _factory.CreateClient();
+        using var client = await SignedIn();
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/articles/1/comments", new { displayName, content })).StatusCode);
         Assert.Empty((await client.GetFromJsonAsync<PagedResult<CommentDto>>("/api/articles/1/comments"))!.Items);
     }
@@ -65,8 +84,7 @@ public sealed class FeedbackTests : IDisposable
     [Fact]
     public async Task OversizedInputAndInvalidPaginationAreRejected()
     {
-        using var client = _factory.CreateClient();
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/articles/1/comments", new { displayName = new string('a', 81), content = "Bình luận hợp lệ" })).StatusCode);
+        using var client = await SignedIn();
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/articles/1/comments", new { displayName = "Độc giả", content = new string('a', 2001) })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/articles/1/comments?page=0")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/articles/1/comments?pageSize=31")).StatusCode);
@@ -134,7 +152,7 @@ public sealed class FeedbackTests : IDisposable
     [InlineData("deleted")]
     public async Task NonpublicArticlesCannotExposeOrReceiveFeedback(string kind)
     {
-        using var client = _factory.CreateClient();
+        using var client = await SignedIn();
         if (kind != "missing")
         {
             await using var scope = _factory.Services.CreateAsyncScope();
@@ -171,6 +189,7 @@ public sealed class FeedbackTests : IDisposable
         await DatabaseSeeder.SeedAsync(db, new PasswordHasher<User>(), config, true);
         await db.Database.ExecuteSqlRawAsync("DROP TABLE Comments; DROP TABLE Ratings;");
         await SqliteFeedbackSchema.UpgradeAsync(db);
+        await SqliteReaderSchema.UpgradeAsync(db);
         var repository = new EfArticleFeedbackRepository(db);
         await repository.AddCommentAsync(new ArticleComment { ArticleId = 1, DisplayName = "Độc giả", Content = "Giữ nguyên dữ liệu hiện có." }, default);
         await repository.SetRatingAsync(1, "browser", 5, default);

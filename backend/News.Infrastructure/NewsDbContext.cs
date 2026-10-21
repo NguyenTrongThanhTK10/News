@@ -8,6 +8,7 @@ public sealed class NewsDbContext(DbContextOptions<NewsDbContext> options) : DbC
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<RoleDefinition> RoleDefinitions => Set<RoleDefinition>();
     public DbSet<LoginSession> Sessions => Set<LoginSession>();
     public DbSet<ArticleComment> Comments => Set<ArticleComment>();
     public DbSet<ArticleRating> Ratings => Set<ArticleRating>();
@@ -43,8 +44,24 @@ public sealed class NewsDbContext(DbContextOptions<NewsDbContext> options) : DbC
         user.HasIndex(u => u.Email).IsUnique();
         user.Property(u => u.Name).HasMaxLength(100).IsRequired();
         user.Property(u => u.PasswordHash).HasMaxLength(500).IsRequired();
+        user.Property(u => u.GoogleSubject).HasMaxLength(255);
+        user.HasIndex(u => u.GoogleSubject).IsUnique().HasFilter("[GoogleSubject] IS NOT NULL");
         user.Property(u => u.Role).HasMaxLength(20).IsRequired();
+        user.Property(u => u.RoleDefinitionId).HasMaxLength(80);
+        user.HasOne<RoleDefinition>().WithMany().HasForeignKey(u => u.RoleDefinitionId).OnDelete(DeleteBehavior.Restrict);
         user.Property(u => u.Version).IsConcurrencyToken();
+
+        var role = model.Entity<RoleDefinition>();
+        role.HasKey(r => r.Id);
+        role.Property(r => r.Id).HasMaxLength(80);
+        role.Property(r => r.Name).HasMaxLength(80).IsRequired();
+        role.HasIndex(r => r.Name).IsUnique();
+        role.Property(r => r.BaseRole).HasMaxLength(20).IsRequired();
+        role.HasData(
+            new RoleDefinition { Id = Roles.Reader, Name = "Độc giả", BaseRole = Roles.Reader },
+            new RoleDefinition { Id = Roles.Admin, Name = "Quản trị viên", BaseRole = Roles.Admin },
+            new RoleDefinition { Id = Roles.Editor, Name = "Biên tập viên", BaseRole = Roles.Editor },
+            new RoleDefinition { Id = Roles.Author, Name = "Tác giả", BaseRole = Roles.Author });
 
         var session = model.Entity<LoginSession>();
         session.HasKey(s => s.Id);
@@ -55,7 +72,8 @@ public sealed class NewsDbContext(DbContextOptions<NewsDbContext> options) : DbC
 
         var comment = model.Entity<ArticleComment>();
         comment.HasKey(c => c.Id);
-        comment.Property(c => c.DisplayName).HasMaxLength(80).IsRequired();
+        comment.Property(c => c.DisplayName).HasMaxLength(100).IsRequired();
+        comment.HasOne<User>().WithMany().HasForeignKey(c => c.UserId).OnDelete(DeleteBehavior.Restrict);
         comment.Property(c => c.Content).HasMaxLength(2000).IsRequired();
         comment.HasIndex(c => new { c.ArticleId, c.CreatedAt, c.Id });
         comment.HasOne<Article>().WithMany().HasForeignKey(c => c.ArticleId).OnDelete(DeleteBehavior.Cascade);

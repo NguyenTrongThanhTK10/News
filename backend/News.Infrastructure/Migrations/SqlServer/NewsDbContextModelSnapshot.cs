@@ -131,10 +131,15 @@ namespace News.Infrastructure.Migrations.SqlServer
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.HasIndex("ArticleId", "CreatedAt", "Id");
 
@@ -211,6 +216,56 @@ namespace News.Infrastructure.Migrations.SqlServer
                     b.ToTable("Sessions");
                 });
 
+            modelBuilder.Entity("News.Domain.RoleDefinition", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("BaseRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("RoleDefinitions");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = "Reader",
+                            BaseRole = "Reader",
+                            Name = "Độc giả"
+                        },
+                        new
+                        {
+                            Id = "Admin",
+                            BaseRole = "Admin",
+                            Name = "Quản trị viên"
+                        },
+                        new
+                        {
+                            Id = "Editor",
+                            BaseRole = "Editor",
+                            Name = "Biên tập viên"
+                        },
+                        new
+                        {
+                            Id = "Author",
+                            BaseRole = "Author",
+                            Name = "Tác giả"
+                        });
+                });
+
             modelBuilder.Entity("News.Domain.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -224,6 +279,10 @@ namespace News.Infrastructure.Migrations.SqlServer
 
                     b.Property<int>("FailedLogins")
                         .HasColumnType("int");
+
+                    b.Property<string>("GoogleSubject")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTime?>("LockedUntil")
                         .HasColumnType("datetime2");
@@ -243,6 +302,10 @@ namespace News.Infrastructure.Migrations.SqlServer
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("RoleDefinitionId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<Guid>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
@@ -251,6 +314,12 @@ namespace News.Infrastructure.Migrations.SqlServer
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("GoogleSubject")
+                        .IsUnique()
+                        .HasFilter("[GoogleSubject] IS NOT NULL");
+
+                    b.HasIndex("RoleDefinitionId");
 
                     b.ToTable("Users");
                 });
@@ -277,6 +346,11 @@ namespace News.Infrastructure.Migrations.SqlServer
                         .HasForeignKey("ArticleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("News.Domain.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("News.Domain.ArticleRating", b =>
@@ -295,6 +369,14 @@ namespace News.Infrastructure.Migrations.SqlServer
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("News.Domain.User", b =>
+                {
+                    b.HasOne("News.Domain.RoleDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("RoleDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }

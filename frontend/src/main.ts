@@ -13,6 +13,7 @@ import App from './App.vue';
 import 'primeicons/primeicons.css';
 import './style.css';
 import './feedback.css';
+import './admin.css';
 
 // Kế thừa giao diện Aura của PrimeVue và thay bảng màu để đồng bộ với thương hiệu TIN24.
 // Các mức 50–950 là các sắc độ từ nhạt đến đậm, dùng cho nền, viền và trạng thái tương tác.

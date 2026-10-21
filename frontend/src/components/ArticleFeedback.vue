@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { isAxiosError } from 'axios';
+import ReaderAuthDialog from './ReaderAuthDialog.vue';
+import { useAuthStore } from '../stores/auth';
 import type { ArticleComment, PagedResult, RatingStatistics } from '../types/news';
 import { getComments, getRatings, postComment, rateArticle } from '../services/feedback';
 import { errorMessage } from '../services/http';
@@ -7,6 +10,23 @@ import { errorMessage } from '../services/http';
 // Component nhận ID bài từ ArticleView. Cha dùng :key="article.id" để tạo instance mới khi đổi bài.
 // Mỗi instance giữ form, danh sách và các request của đúng một bài viết.
 const props = defineProps<{ articleId: number }>();
+const auth = useAuthStore();
+const authVisible = ref(false);
+const authMode = ref<'register' | 'login'>('register');
+const logoutBusy = ref(false);
+async function openAuth(mode: 'register' | 'login') {
+  await auth.initialize();
+  if (lifetime.signal.aborted || auth.user) return;
+  authMode.value = mode;
+  authVisible.value = true;
+}
+async function logout() {
+  if (logoutBusy.value) return;
+  logoutBusy.value = true;
+  try { await auth.logout(); }
+  catch (cause) { formError.value = errorMessage(cause); }
+  finally { logoutBusy.value = false; }
+}
 // lifetime hủy mọi request gắn với vòng đời component; commentsController hủy riêng lần tải
 // bình luận trước khi phân trang, không ảnh hưởng request đánh giá hoặc gửi form.
 const lifetime = new AbortController();
@@ -24,7 +44,6 @@ const selectedStars = ref(0);
 const ratingBusy = ref(false);
 const ratingMessage = ref('');
 // v-model trong template nối các ref này với ô nhập; thông báo form tách khỏi lỗi tải dữ liệu.
-const displayName = ref('');
 const content = ref('');
 const commentBusy = ref(false);
 const formError = ref('');
@@ -93,17 +112,17 @@ async function submitRating() {
 // HTML required/minlength/maxlength trong template bổ sung kiểm tra khi người dùng gửi form.
 async function submitComment() {
   if (commentBusy.value || commentsLoading.value) return;
+  if (!auth.user) { await openAuth('register'); return; }
   formError.value = '';
   commentMessage.value = '';
-  const name = displayName.value.trim();
   const text = content.value.trim();
-  if (name.length < 2 || text.length < 5) {
-    formError.value = 'Vui lòng nhập tên từ 2 ký tự và bình luận từ 5 ký tự, không tính khoảng trắng ở đầu và cuối.';
+  if (text.length < 5) {
+    formError.value = 'Vui lòng nhập bình luận từ 5 ký tự, không tính khoảng trắng ở đầu và cuối.';
     return;
   }
   commentBusy.value = true;
   try {
-    const comment = await postComment(props.articleId, name, text, lifetime.signal);
+    const comment = await postComment(props.articleId, text, lifetime.signal);
     if (lifetime.signal.aborted) return;
     // Chỉ sau khi POST thành công mới thêm bình luận server trả về vào đầu trang 1.
     // Nếu trước đó ở trang khác thì không ghép các mục của trang đó vào trang đầu.
@@ -118,7 +137,10 @@ async function submitComment() {
     // Sau cập nhật tức thời, đọc lại trang 1 để đồng bộ thứ tự và tổng số với dữ liệu server.
     await loadComments(1);
   } catch (cause) {
-    if (!lifetime.signal.aborted) formError.value = errorMessage(cause);
+    if (!lifetime.signal.aborted) {
+      formError.value = errorMessage(cause);
+      if (isAxiosError(cause) && cause.response?.status === 401 && !auth.user) await openAuth('login');
+    }
   } finally {
     if (!lifetime.signal.aborted) commentBusy.value = false;
   }
@@ -127,6 +149,7 @@ async function submitComment() {
 // Khởi chạy hai lần tải độc lập để chúng không phải chờ nhau.
 // void cho biết không await tại hook này; từng hàm đã tự xử lý lỗi của mình.
 onMounted(() => {
+  void auth.initialize();
   void loadComments();
   void loadRatings();
 });
@@ -171,9 +194,10 @@ onBeforeUnmount(() => {
       <div class="comments-heading"><h3 id="comments-title">Bình luận <span v-if="comments" class="section-count">{{ comments.totalCount }}</span></h3><span class="feedback-hint">Mới nhất trước</span></div>
       <!-- ID input chứa articleId để label trỏ đúng ô; disabled ngăn sửa form lúc đang gửi. -->
       <form class="comment-form" @submit.prevent="submitComment">
-        <div class="form-field"><label :for="`comment-name-${articleId}`">Tên hiển thị <span class="required">*</span></label><input :id="`comment-name-${articleId}`" v-model="displayName" class="feedback-input" placeholder="Bạn muốn được gọi là gì?" autocomplete="nickname" required minlength="2" maxlength="80" :disabled="commentBusy"></div>
+        <div v-if="auth.user" class="comment-account"><span><i class="pi pi-user" aria-hidden="true"></i> Bình luận với tên <strong>{{ auth.user.name }}</strong></span><button type="button" class="text-button" :disabled="commentBusy || logoutBusy" @click="logout">{{ logoutBusy ? 'Đang đăng xuất…' : 'Đăng xuất' }}</button></div>
+        <div v-else class="comment-auth-prompt"><p>Đăng ký tài khoản để chia sẻ góc nhìn của bạn.</p><div><button type="button" class="text-button" @click="openAuth('register')">Đăng ký để bình luận</button><span>Đã có tài khoản?</span><button type="button" class="text-button" @click="openAuth('login')">Đăng nhập</button></div></div>
         <div class="form-field"><label :for="`comment-content-${articleId}`">Chia sẻ góc nhìn của bạn <span class="required">*</span></label><textarea :id="`comment-content-${articleId}`" v-model="content" class="feedback-input" rows="4" placeholder="Điều gì trong câu chuyện khiến bạn suy nghĩ?" required minlength="5" maxlength="2000" :disabled="commentBusy" :aria-describedby="`comment-hint-${articleId}`"></textarea><div class="comment-field-meta"><small :id="`comment-hint-${articleId}`">Hãy chia sẻ lịch sự và tôn trọng những góc nhìn khác.</small><span>{{ content.length }}/2000</span></div></div>
-        <div class="comment-form-bottom"><span class="feedback-hint"><i class="pi pi-globe" aria-hidden="true"></i> Tên và bình luận sẽ hiển thị công khai.</span><button type="submit" class="button button-primary" :disabled="commentBusy || commentsLoading"><i :class="['pi', commentBusy ? 'pi-spin pi-spinner' : 'pi-send']" aria-hidden="true"></i>{{ commentBusy ? 'Đang gửi…' : 'Gửi bình luận' }}</button></div>
+        <div class="comment-form-bottom"><span class="feedback-hint"><i class="pi pi-globe" aria-hidden="true"></i> Tên tài khoản và bình luận sẽ hiển thị công khai.</span><button :type="auth.user ? 'submit' : 'button'" class="button button-primary" :disabled="commentBusy || commentsLoading" @click="!auth.user && openAuth('register')"><i :class="['pi', commentBusy ? 'pi-spin pi-spinner' : 'pi-send']" aria-hidden="true"></i>{{ commentBusy ? 'Đang gửi…' : 'Gửi bình luận' }}</button></div>
         <p v-if="formError" class="feedback-error" role="alert">{{ formError }}</p>
         <p v-if="commentMessage" class="feedback-success" role="status">{{ commentMessage }}</p>
       </form>
@@ -188,5 +212,6 @@ onBeforeUnmount(() => {
       <div v-else-if="!commentsLoading && !commentsError" class="comments-empty"><i class="pi pi-comments" aria-hidden="true"></i><strong>Góc nhìn đầu tiên có thể là của bạn.</strong><p>Chưa có bình luận. Hãy bắt đầu cuộc trò chuyện.</p></div>
       <nav v-if="comments && comments.totalPages > 1" class="comment-pagination" aria-label="Phân trang bình luận"><button type="button" class="button button-outline" :disabled="commentsLoading || commentBusy || comments.page <= 1" @click="loadComments(comments.page - 1)"><i class="pi pi-angle-left" aria-hidden="true"></i> Bình luận trước</button><span>Trang {{ comments.page }} / {{ comments.totalPages }}</span><button type="button" class="button button-outline" :disabled="commentsLoading || commentBusy || comments.page >= comments.totalPages" @click="loadComments(comments.page + 1)">Bình luận sau <i class="pi pi-angle-right" aria-hidden="true"></i></button></nav>
     </section>
+    <ReaderAuthDialog v-model:visible="authVisible" :initial-mode="authMode" />
   </section>
 </template>

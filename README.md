@@ -10,7 +10,7 @@
 | **02 · PrimeVue và giao diện** | Button, InputText, Tag, DataTable, Dialog, Toast, responsive; thêm Editor, Select, Password, Textarea, Message | `/hoc-vue`, `/quan-tri` |
 | **03 · Vue Router và Axios** | Điều hướng, ID bài viết, gọi API C#, loading/error/404, abort request, query string, guard, interceptor | Trang chủ, `/bai-viet/:id`, tòa soạn |
 | **04 · Backend và SQL Server** | ASP.NET Core 8, EF Core, DTO, CRUD, lưu database, phân trang, migrations SQL Server | `backend/News.sln`, [hướng dẫn SQL Server](docs/SQL_SERVER.md) |
-| **05 · Quản trị tin tức** | Đăng nhập JWT, phiên refresh, ba vai trò, soạn thảo, xem trước, nháp, gửi duyệt, trả bài, duyệt, xuất bản, gỡ bài và xóa | `/quan-tri` |
+| **05 · Quản trị tin tức** | Đăng nhập JWT, phiên refresh, tạo người dùng/vai trò/danh mục, phân quyền, soạn thảo, xem trước, nháp, gửi duyệt, trả bài, duyệt, xuất bản, gỡ bài và xóa | `/quan-tri` |
 
 [Hướng dẫn học theo từng phần và vị trí mã nguồn](docs/LEARNING_GUIDE.md).
 
@@ -58,6 +58,18 @@ Chỉ được seed khi **Development/Testing** và `Seed:DemoData=true`:
 
 Đăng nhập Author để tạo bài; dùng cửa sổ trình duyệt khác với Editor để duyệt/xuất bản. Tài khoản/mật khẩu này chỉ dành cho dữ liệu thực hành. Production không tạo tài khoản demo.
 
+Menu **Quản lý tin tức** gồm **Quản lý bài viết**, **Soạn bài mới** và **Danh mục bài viết** (dành cho Admin). Menu **Quản lý tài khoản** dành cho Admin gồm **Người dùng**, **Vai trò**:
+
+- **Người dùng** (`/quan-tri/nguoi-dung`): tạo tài khoản với họ tên, email, mật khẩu 12–200 ký tự và vai trò; tìm kiếm, phân trang và đổi vai trò cho tài khoản hiện có. Đổi vai trò thu hồi các phiên của tài khoản đó và yêu cầu đăng nhập lại; không thể tự gỡ quyền Admin.
+- **Vai trò** (`/quan-tri/vai-tro`): tạo vai trò có tên riêng, kế thừa đầy đủ một mức quyền **Admin**, **Editor**, **Author** hoặc **Reader**. Ví dụ, “Cộng tác viên” kế thừa Author. Chọn vai trò này khi tạo hoặc phân quyền người dùng.
+- **Danh mục bài viết** (`/quan-tri/danh-muc`): tạo tên và slug duy nhất; tự gợi ý slug không dấu từ tên. Danh mục mới xuất hiện trong lựa chọn chuyên mục khi soạn bài và trên trang tin. Số bài tại trang quản trị tính cả bản nháp, còn trang tin chỉ đếm bài công khai.
+
+Giao diện quản trị dùng sidebar tối màu, bảng dữ liệu kèm ảnh thu nhỏ và các thẻ thống kê lấy số liệu từ API. Nhấn thẻ trạng thái bài viết để lọc nhanh; số liệu thống kê tính theo phạm vi quyền của tài khoản và được cập nhật sau thao tác biên tập. Trên điện thoại, menu mở dạng ngăn kéo và bảng cuộn ngang trong khung. Kiểu dáng quản trị được tập trung tại `frontend/src/admin.css`.
+
+Khi bật khởi tạo dữ liệu, hệ thống bổ sung các danh mục còn thiếu: Thời sự, Thế giới, Kinh tế, Pháp luật, Sức khỏe, Khoa học, Giải trí, Xe, Bất động sản, Công nghệ, Đời sống, Du lịch, Văn hóa, Giáo dục và Thể thao. Danh mục đã có và các danh mục tự tạo được giữ nguyên.
+
+API kiểm tra quyền Admin cho cả ba nhóm thao tác; Editor/Author không truy cập được các trang và API này. SQLite Development tự nâng cấp schema khi khởi động lại với `Database:Initialize=true`, giữ nguyên tài khoản và bài viết hiện có. SQL Server dùng migration khởi tạo duy nhất `InitialNewsSchema`, bao gồm cả quản trị tài khoản/vai trò; xem [cách áp dụng và xử lý lịch sử cũ](docs/SQL_SERVER.md).
+
 ## Quy trình biên tập và quyền
 
 ```text
@@ -80,6 +92,12 @@ Công khai ──lưu trữ──→ Lưu trữ ──khôi phục──→ Nhá
 | Xóa mềm | Nháp/bị trả lại của mình | Nháp/bị trả lại của mình | Toàn bộ |
 
 Bài đang chờ duyệt, đã xuất bản hoặc lưu trữ không được sửa trực tiếp. Sửa bài đã duyệt chuyển về nháp và cần duyệt lại. API công khai chỉ trả bài đã xuất bản và chưa xóa. Backend kiểm tra vai trò, chủ sở hữu, trạng thái và `Version`; frontend ẩn nút theo quyền để hỗ trợ trải nghiệm.
+
+## Chia sẻ bài viết
+
+Nút **Chia sẻ** bên cạnh nút lưu và mục chia sẻ cuối bài mở lựa chọn **Facebook**, **X**, **email**, **sao chép liên kết**. Trình duyệt có Web Share API sẽ hiện thêm **Ứng dụng khác** để mở menu chia sẻ của thiết bị. Chia sẻ không yêu cầu tài khoản TIN24.
+
+Liên kết luôn trỏ đến bài đang đọc, bỏ query/hash. Nếu trình duyệt chặn Clipboard API, hộp thoại chọn sẵn đường dẫn để sao chép thủ công. Đóng menu chia sẻ của thiết bị không hiển thị lỗi. Không tự đăng bài lên tài khoản mạng xã hội; người đọc tiếp tục xác nhận ở ứng dụng đã chọn.
 
 ## Kiến trúc
 
@@ -108,15 +126,17 @@ frontend/src/
 
 Phụ thuộc backend: **Application → Domain**, **Infrastructure → Application/Domain**, **API → Application/Infrastructure**. Controller không truy vấn database; Application xử lý nghiệp vụ qua interface. Repository truy vấn/filter/count/paginate bằng EF Core async tại database. DTO tách hợp đồng HTTP khỏi entity, danh sách công khai không gửi toàn bộ nội dung bài.
 
-Các bảng: **Articles**, **Categories**, **Users**, **Sessions**, **Comments**, **Ratings**; khóa ngoại, chỉ mục và concurrency token. `Version` dạng GUID được EF kiểm tra khi cập nhật, trả `409` nếu dữ liệu đã đổi. Ngày giờ lưu UTC, frontend hiển thị giờ Việt Nam.
+Các bảng: **Articles**, **Categories**, **Users**, **RoleDefinitions**, **Sessions**, **Comments**, **Ratings**; khóa ngoại, chỉ mục và concurrency token. `Version` dạng GUID được EF kiểm tra khi cập nhật, trả `409` nếu dữ liệu đã đổi. Ngày giờ lưu UTC, frontend hiển thị giờ Việt Nam.
 
 ## Bình luận và đánh giá bài viết
 
-Cuối mỗi bài công khai có bình luận và đánh giá **1–5 sao**, điểm trung bình, số lượt và phân bố số sao. Độc giả không cần tài khoản tòa soạn: nhập tên hiển thị 2–80 ký tự và bình luận 5–2000 ký tự. Nội dung được lưu dưới dạng văn bản và hiển thị bằng nội suy Vue, không thực thi HTML. Danh sách bình luận có phân trang, mới nhất trước.
+Cuối mỗi bài công khai có bình luận và đánh giá **1–5 sao**, điểm trung bình, số lượt và phân bố số sao. Đọc bình luận không yêu cầu đăng nhập. Gửi bình luận cần tài khoản: khi chưa đăng nhập, nhấn gửi sẽ mở form đăng ký/đăng nhập ngay tại bài viết và giữ nội dung đang nhập. Đăng ký bằng email và mật khẩu 12–200 ký tự tự tạo quyền **Reader / Độc giả**, không có quyền tòa soạn. Tên bình luận lấy từ tài khoản; nội dung cần 5–2000 ký tự. Nội dung được lưu dưới dạng văn bản và hiển thị bằng nội suy Vue, không thực thi HTML. Danh sách bình luận có phân trang, mới nhất trước.
+
+Có thể đăng ký/đăng nhập bằng Google sau khi cấu hình `Google:ClientId` ở backend. Hiện mặc định chưa có Client ID nên nút Google bị vô hiệu hóa; đăng ký bằng email vẫn hoạt động. Xem [hướng dẫn tạo Client ID và bật Google](docs/GOOGLE_SIGN_IN.md). Backend xác minh Google ID token và nonce, tự tạo tài khoản Reader lần đầu. Không tự liên kết Google vào tài khoản email/mật khẩu có sẵn.
 
 Đánh giá được nhận diện bằng cookie ngẫu nhiên `HttpOnly`, `SameSite=Strict` có hạn một năm, chỉ lưu bản hash của mã nhận diện trong database. Gửi lại từ cùng trình duyệt cập nhật đánh giá cũ, không tăng số lượt. Đây là nhận diện trình duyệt, không xác minh danh tính: xóa cookie hoặc dùng trình duyệt khác có thể tạo lượt mới. Cookie dùng `Secure` trong Production; triển khai frontend và API cùng site qua HTTPS.
 
-Chỉ bài đã xuất bản, chưa xóa mới cho đọc/ghi phản hồi. API giới hạn tổng cộng 12 lần gửi bình luận/đánh giá mỗi phút theo IP. SQLite Development tự bổ sung hai bảng khi `Database:Initialize=true`, giữ nguyên dữ liệu cũ. SQL Server cần áp dụng migration `AddArticleFeedback` hoặc [script nâng cấp](backend/sql/002-article-feedback.sql) sau schema ban đầu.
+Chỉ bài đã xuất bản, chưa xóa mới cho đọc/ghi phản hồi. API giới hạn tổng cộng 12 lần gửi bình luận/đánh giá mỗi phút theo IP. SQLite Development tự bổ sung hai bảng khi `Database:Initialize=true`, giữ nguyên dữ liệu cũ. SQL Server dùng `InitialNewsSchema`, đã bao gồm bình luận và đánh giá; database có lịch sử migration cũ cần làm theo [hướng dẫn chuyển baseline](docs/SQL_SERVER.md).
 
 ## Đăng nhập và phiên
 
@@ -132,10 +152,15 @@ Chỉ bài đã xuất bản, chưa xóa mới cho đọc/ghi phản hồi. API 
 | Nhóm | Endpoint |
 | --- | --- |
 | Công khai | `GET /health`, `GET /api/categories`, `GET /api/articles`, `GET /api/articles/{id}` |
-| Bình luận | `GET/POST /api/articles/{id}/comments` — GET nhận `page`, `pageSize` (1–30, mặc định 10); POST nhận `{ "displayName": "Tên", "content": "Bình luận" }` |
+| Bình luận | `GET/POST /api/articles/{id}/comments` — GET nhận `page`, `pageSize` (1–30, mặc định 10); POST yêu cầu đăng nhập và nhận `{ "content": "Bình luận" }` |
 | Đánh giá | `GET/POST /api/articles/{id}/ratings` — POST nhận `{ "stars": 1..5 }`; response có `average`, `count`, `myRating`, `distribution` (số lượt từ 1 đến 5 sao) |
+| Đăng ký độc giả | `POST /api/auth/register` |
+| Google | `GET /api/auth/google/options`, `POST /api/auth/google` |
 | Đăng nhập | `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`, `GET /api/auth/me` |
 | CRUD quản trị | `GET/POST /api/admin/articles`, `GET/PUT/DELETE /api/admin/articles/{id}` |
+| Người dùng (Admin) | `GET/POST /api/admin/users`, `PUT /api/admin/users/{id}/role` |
+| Vai trò (Admin) | `GET/POST /api/admin/roles` |
+| Danh mục (Admin) | `GET/POST /api/admin/categories` |
 | Quy trình | `POST /api/admin/articles/{id}/{operation}` |
 
 `operation`: `submit`, `approve`, `reject`, `publish`, `unpublish`, `archive`, `restore`. Body: `{ "version": "GUID", "note": "Góp ý nếu trả lại" }`. Xóa dùng `?version=GUID`.
@@ -159,7 +184,7 @@ Seed__StaffUsers__0__Role=Editor
 Seed__StaffUsers__0__Password=MAT_KHAU_RIENG_IT_NHAT_12_KY_TU
 ```
 
-Role hợp lệ: `Admin`, `Editor`, `Author`. Seed chỉ thêm email chưa tồn tại, không ghi đè mật khẩu/quyền. Sau khởi tạo bỏ các mật khẩu seed khỏi cấu hình và đặt `Database__Initialize=false`. Chưa có màn hình quản lý tài khoản/đổi mật khẩu; thao tác nhân sự hiện được thực hiện qua cấu hình khởi tạo.
+Role hợp lệ: `Admin`, `Editor`, `Author`. Seed chỉ thêm email chưa tồn tại, không ghi đè mật khẩu/quyền. Sau khởi tạo bỏ các mật khẩu seed khỏi cấu hình và đặt `Database__Initialize=false`. Sau khởi tạo, Admin tạo và phân quyền tài khoản tại mục **Người dùng**. Chưa có chức năng đổi mật khẩu.
 
 ## Kiểm thử
 
@@ -179,9 +204,9 @@ npx playwright install chromium
 npm test
 ```
 
-Playwright tự khởi động backend Development bằng database `news-e2e.db` riêng và Vite. Kiểm tra desktop/mobile: trang tin, tìm kiếm, lưu bài, lỗi mạng/ảnh/404, các ví dụ học Vue/PrimeVue, route guard, đăng nhập, Editor → gửi duyệt → duyệt → xuất bản → gỡ bài, reload phiên và đăng xuất. Chạy tuần tự để thao tác biên tập và các kiểm tra danh sách công khai không đụng dữ liệu nhau. Có thể đặt `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` để dùng Chrome sẵn có. Kết quả lỗi trong `artifacts/playwright/`.
+Playwright tự khởi động backend Development ở cổng **5081** bằng database `news-e2e.db` riêng và Vite ở cổng **5174**, không dùng lại server phát triển ở 5080/5173 để tránh tạo dữ liệu thử nghiệm trong `news-dev.db`. Kiểm tra desktop/mobile: trang tin, tìm kiếm, lưu bài, lỗi mạng/ảnh/404, các ví dụ học Vue/PrimeVue, route guard, đăng nhập, Editor → gửi duyệt → duyệt → xuất bản → gỡ bài, reload phiên và đăng xuất; đăng ký/đăng nhập độc giả từ phần bình luận, Google giả lập, giữ bản nháp khi hết phiên; tạo vai trò, tạo/đăng nhập tài khoản mới, phân quyền và tạo danh mục. Chạy tuần tự để thao tác biên tập và các kiểm tra danh sách công khai không đụng dữ liệu nhau. Có thể đặt `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` để dùng Chrome sẵn có. Kết quả lỗi trong `artifacts/playwright/`.
 
-Migrations/script được sinh bằng SQL Server provider. **Chưa kiểm thử kết nối hoặc áp dụng migration trên SQL Server thật** vì chưa có instance; cần hoàn thành bước này theo tài liệu trước khi triển khai SQL Server.
+Bốn migration cũ đã được gộp thành một `InitialNewsSchema` chứa toàn bộ bảy bảng và bốn vai trò mặc định. Thư mục migrations còn ba file theo cấu trúc EF: migration chính, `.Designer.cs` và `NewsDbContextModelSnapshot.cs`. Script `backend/sql/001-initial-schema.sql` khởi tạo đầy đủ database mới; các script `002`–`004` dành riêng cho database có lịch sử cũ. Migrations/script được sinh bằng SQL Server provider. **Chưa kiểm thử kết nối hoặc áp dụng migration trên SQL Server thật** vì chưa có instance; cần hoàn thành bước này theo tài liệu trước khi triển khai SQL Server.
 
 Quill được ghim ở `2.0.2` để tránh `2.0.3` đang được liệt kê trong [GHSA-v3m3-f69x-jf25](https://github.com/advisories/GHSA-v3m3-f69x-jf25). Lớp lọc HTML phía server và DOMPurify vẫn được giữ độc lập với lựa chọn phiên bản Editor.
 

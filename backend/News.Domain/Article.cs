@@ -4,6 +4,7 @@ public enum ArticleStatus { Draft, PendingReview, Approved, Published, Rejected,
 
 public static class Roles
 {
+    public const string Reader = "Reader";
     public const string Admin = "Admin";
     public const string Editor = "Editor";
     public const string Author = "Author";

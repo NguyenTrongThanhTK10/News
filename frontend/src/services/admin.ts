@@ -1,6 +1,8 @@
 import { api } from './http';
 import type { AdminArticle, ArticleAction, ArticleStatus, SaveArticleRequest } from '../types/admin';
 import type { PagedResult } from '../types/news';
+import type { Category } from '../types/news';
+import type { CreateCategoryRequest, CreateRoleRequest, CreateUserRequest, ManagedRole, ManagedUser } from '../types/admin';
 // API quản trị dùng chung api instance nên token được http.ts tự gắn vào request.
 // Backend quyết định dữ liệu/quyền thực tế; bộ lọc frontend chỉ giúp người dùng thao tác.
 export async function listAdminArticles(query: { page: number; pageSize: number; search?: string; status?: ArticleStatus }, signal?: AbortSignal) {
@@ -21,4 +23,26 @@ export async function transitionArticle(article: AdminArticle, action: ArticleAc
 // DELETE không cần dữ liệu trả về; version đi trong query string để server kiểm tra trước khi xóa.
 export async function deleteArticle(article: AdminArticle) {
   await api.delete(`/admin/articles/${article.article.id}`, { params: { version: article.version } });
+}
+
+export async function listUsers(query: { page: number; pageSize: number; search?: string }, signal?: AbortSignal) {
+  return (await api.get<PagedResult<ManagedUser>>('/admin/users', { params: query, signal })).data;
+}
+export async function createUser(request: CreateUserRequest) {
+  return (await api.post<ManagedUser>('/admin/users', request)).data;
+}
+export async function assignUserRole(user: ManagedUser, roleId: string) {
+  return (await api.put<ManagedUser>(`/admin/users/${user.id}/role`, { roleId, version: user.version })).data;
+}
+export async function listRoles(signal?: AbortSignal) {
+  return (await api.get<ManagedRole[]>('/admin/roles', { signal })).data;
+}
+export async function createRole(request: CreateRoleRequest) {
+  return (await api.post<ManagedRole>('/admin/roles', request)).data;
+}
+export async function listAdminCategories(signal?: AbortSignal) {
+  return (await api.get<Category[]>('/admin/categories', { signal })).data;
+}
+export async function createCategory(request: CreateCategoryRequest) {
+  return (await api.post<Category>('/admin/categories', request)).data;
 }

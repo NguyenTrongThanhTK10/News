@@ -11,6 +11,30 @@ namespace News.Tests;
 public sealed class SeedTests
 {
     [Fact]
+    public async Task SeedAddsMissingNewsCategoriesAndPreservesExistingCategoriesAndArticles()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = new NewsDbContext(new DbContextOptionsBuilder<NewsDbContext>().UseSqlite(connection).Options);
+        await db.Database.EnsureCreatedAsync();
+        db.Categories.AddRange(new Category { Slug = "cong-nghe", Name = "Công nghệ hiện có" },
+            new Category { Slug = "ban-doc", Name = "Bạn đọc" });
+        await db.SaveChangesAsync();
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Seed:DemoData"] = "true" }).Build();
+        var hasher = new PasswordHasher<User>();
+        await DatabaseSeeder.SeedAsync(db, hasher, config, true);
+        var articleIds = await db.Articles.OrderBy(a => a.Id).Select(a => a.Id).ToArrayAsync();
+        await DatabaseSeeder.SeedAsync(db, hasher, config, true);
+        Assert.Equal(16, await db.Categories.CountAsync());
+        Assert.Equal("Công nghệ hiện có", (await db.Categories.FindAsync("cong-nghe"))!.Name);
+        Assert.Equal("Bạn đọc", (await db.Categories.FindAsync("ban-doc"))!.Name);
+        Assert.Equal("Kinh tế", (await db.Categories.FindAsync("kinh-te"))!.Name);
+        Assert.Equal("Thời sự", (await db.Categories.FindAsync("thoi-su"))!.Name);
+        Assert.Equal(articleIds, await db.Articles.OrderBy(a => a.Id).Select(a => a.Id).ToArrayAsync());
+        Assert.Equal(12, articleIds.Length);
+    }
+
+    [Fact]
     public async Task ProductionSeedCreatesConfiguredStaffWithoutDemoAndHashesPasswords()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

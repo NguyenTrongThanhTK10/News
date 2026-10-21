@@ -14,6 +14,8 @@ public interface IHtmlContentSanitizer
 
 public interface IAuthService
 {
+    Task<AuthSessionResult> RegisterAsync(RegisterRequest request, CancellationToken ct);
+    Task<AuthSessionResult> GoogleLoginAsync(GoogleLoginRequest request, string nonce, CancellationToken ct);
     Task<AuthSessionResult?> LoginAsync(LoginRequest request, CancellationToken ct);
     Task<AuthSessionResult?> RefreshAsync(string token, CancellationToken ct);
     Task RevokeAsync(string? token, Guid? sessionId, CancellationToken ct);
